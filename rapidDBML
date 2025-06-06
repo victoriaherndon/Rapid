@@ -1,0 +1,40 @@
+// dbml file that covers our db schema
+// syntax reference here:
+// https://dbml.dbdiagram.io/docs/
+Table user {
+  UserID int [primary key]
+  Name varchar(30)
+  Role varchar(15)
+  Username varchar(15)
+  Password varchar(20)
+}
+
+Table county {
+  Population integer [primary key]
+  Name varchar(15)
+  NumberSheltered integer
+  created_at timestamp
+}
+
+Table resources {
+  County varchar(15) [primary key]
+  Helicopter int
+  ShelterRoom int
+  Insulin int
+  Gas int
+  Food int
+  Water int
+  Sandbags int
+}
+
+Table openEvents {
+  EventID integer [primary key]
+  County varchar(15)
+  Address TEXT(100)
+  Status varchar(15)
+  SubmittedAt timestamp
+  ResourcesRequested TEXT(1000)
+}
+
+Ref:  resources.County > county.Name
+Ref: openEvents.County > county.Name
