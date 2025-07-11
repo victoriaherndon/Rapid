@@ -69,7 +69,7 @@
         description: form.description.value,
         status: 'Ongoing'
       };
-      const list = document.getElementById('incidents-list');
+      /*const list = document.getElementById('incidents-list');
       const div = document.createElement('div');
       div.className = 'incident-card';
       div.innerHTML = `
@@ -81,7 +81,37 @@
       if (list.querySelector('p')) list.innerHTML = '';
       list.appendChild(div);
       form.reset();
-    };
+      */
+     try 
+     {
+        const response = await fetch'/*name*/', {
+          method: 'POST',
+          headers:
+          {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(incident)
+        };
+
+
+        if(response.ok)
+        {
+          alert("submitted");
+          form.reset();
+        }
+        else
+        {
+          const result = await response.json();
+          alert("error" , result);
+        }
+      }
+        catch(error)
+        {
+          console.error("error", error)
+          alert("try again later")
+        }
+     };
+
   </script>
 </body>
 </html> 
