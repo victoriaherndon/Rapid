@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>RAPID - Create Account</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}"/>
+</head>
+<body>
+  <header>
+    <h1>RAPID</h1>
+    <p>Create a new account to access the dashboard</p>
+  </header>
+  <main>
+    <section>
+      <a href="{{ url_for('index') }}" class="back-btn" id="backBtn">&larr; Back</a>
+      <h2>Create Account</h2>
+      <form id="createAccountForm" method="POST" action="{{ url_for('create_account') }}">
+    <label>
+      Username:
+      <input type="text" name="username" id="username" required />
+      <div id="usernameRequirements" class="username-requirements">
+        Username must be between 5–20 characters.
+      </div>
+    </label>
+    <label>
+      Email:
+      <input type="email" name="email" id="email" required />
+    </label>
+    <label>
+      Password:
+      <input type="password" name="password" id="password" required />
+      <div id="passwordRequirements" class="password-requirements">
+        <ul>
+          <li id="length">At least 8 characters</li>
+          <li id="uppercase">At least one uppercase letter</li>
+          <li id="lowercase">At least one lowercase letter</li>
+          <li id="number">At least one number</li>
+          <li id="special">At least one special character (!@#$%^&*)</li>
+        </ul>
+      </div>
+    </label>
+    <label>
+      Confirm Password:
+      <input type="password" name="confirm_password" id="confirmPassword" required />
+    </label>
+    <button type="submit">Create Account</button>
+  </form>
+  <div id="create-account-message"></div>
+</section>
+  </main>
+  <footer>
+    <p>RAPID</p>
+  </footer>
+  <script src="{{ url_for('static', filename='js/create_account.js') }}"></script>
+</body>
+</html>

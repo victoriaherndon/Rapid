@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>RAPID - Resource Request</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}"/>
+</head>
+<body>
+  <header>
+    <h1>RAPID</h1>
+    <p>Request Resources</p>
+  </header>
+  <main>
+    <a href="{{ url_for('dashboard') }}" class="back-btn">&larr; Back to Dashboard</a>
+    <section>
+      <h2>Resource Request Form</h2>
+      <form id="resource-form">
+        <label>
+          County:
+          <input type="text" name="county" required />
+        </label>
+        <label>
+          Address:
+          <input type="text" name="address" required />
+        </label>
+        <label>
+          Type of Occurrence:
+          <select name="type" required>
+            <option value="">Select...</option>
+            <option value="fire">Fire</option>
+            <option value="flood">Flood</option>
+            <option value="storm">Storm</option>
+            <option value="earthquake">Earthquake</option>
+            <option value="other">Other</option>
+          </select>
+        </label>
+        <label>
+          Resources Requested:
+          <textarea name="resources" rows="3" required></textarea>
+        </label>
+        <button type="submit">Submit Request</button>
+      </form>
+      <div id="resource-message"></div>
+    </section>
+  </main>
+  <footer>
+    <p>RAPID</p>
+  </footer>
+  <script src="app.js"></script>
+</body>
+</html> 

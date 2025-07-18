@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Mock Approval Module</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+  <header>
+    <h1>RAPID</h1>
+    <p>Mock Approval of Funds</p>
+  </header>
+
+  <nav>
+    <a href="{{ url_for('dashboard') }}">Back to Dashboard</a>
+  </nav>
+
+  <main>
+    <section>
+      <h2>Approve/Deny Funding</h2>
+      <form method="POST">
+        <label for="request-id">Request ID:
+          <input type="text" id="request-id" name="request_id" required>
+        </label>
+
+        <label for="status">Approval Status:
+          <select id="status" name="status" required>
+            <option value="">Select...</option>
+            <option value="approved">Approved</option>
+            <option value="denied">Denied</option>
+            <option value="pending">Pending</option>
+          </select>
+        </label>
+
+        <button type="submit">Update Status</button>
+      </form>
+    </section>
+  </main>
+
+  <footer>
+    &copy; RAPID 
+  </footer>
+</body>
+</html>

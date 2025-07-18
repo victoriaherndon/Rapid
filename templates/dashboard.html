@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>RAPID - Emergency Management Dashboard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}"/>
+</head>
+<body>
+  <header>
+    <h1>RAPID</h1>
+    <p>Welcome, [Username]</p>
+    <p>Resource Allocation and Public Incident Dashboard</p>
+  </header>
+  <nav>
+    <a href="{{ url_for('resources') }}">Request Resources</a>
+    <a href="{{ url_for('submitted_reports') }}">Submitted Reports</a>
+    <a href="{{ url_for('demographics') }}">Demographics</a>
+    <ul class="navbar" style="display:inline-block; vertical-align:middle; margin:0; padding:0;">
+      <li class="dropdown">
+        <span class="dropbtn">Admin Dashboard</span>
+        <div class="dropdown-content">
+          <a href="{{ url_for('city_reports') }}">City Reports</a>
+          <a href="{{ url_for('county_reports') }}">County Reports</a>
+          <a href="{{ url_for('anticipated_costs') }}">Anicipated Costs</a>
+          <a href="{{ url_for('mock_approval') }}">Mock Approval</a>
+        </div>
+      </li>
+    </ul>
+  </nav>
+  <main>
+    <section class="report-section">
+      <h2>Report an Incident</h2>
+      <form id="incident-form" action="{{ url_for('dashboard') }}" method="post">
+        <label>
+          County:
+          <input type="text" name="county" id="county" required />
+        </label>
+        <label>
+          Address:
+          <input type="text" id="address" name="address" required />
+        </label>
+        <label>
+          Type of Occurrence:
+          <select name="occurrence" id="occurrence" required>
+            <option value="">Select...</option>
+            <option value="fire">Fire</option>
+            <option value="flood">Flood</option>
+            <option value="storm">Storm</option>
+            <option value="earthquake">Earthquake</option>
+            <option value="other">Other</option>
+          </select>
+        </label>
+        <label>
+          Description:
+          <textarea name="description" id="description" rows="3" required></textarea>
+        </label>
+        <button type="submit">Submit Incident</button>
+      </form>
+    </section>
+    <section class="dashboard-section">
+      <h2>Incident Dashboard</h2>
+      <div id="incidents-list">
+        <!--I am going to dynamically load incidents here. Will be working on it. -->
+        <p>No incidents reported yet.</p>
+      </div>
+    </section>
+  </main>
+  <footer>
+    <p>RAPID </p>
+  </footer>
+  <script>
+    // FRONT END FORM SUBMISSION DASHBOARD
+    document.getElementById('incident-form').onsubmit = function(e) {
+      e.preventDefault();
+      const form = e.target;
+      const incident = {
+        county: form.county.value,
+        address: form.address.value,
+        type: form.type.value,
+        description: form.description.value,
+        status: 'Ongoing'
+      };
+      const list = document.getElementById('incidents-list');
+      const div = document.createElement('div');
+      div.className = 'incident-card';
+      div.innerHTML = `
+        <h3>${incident.type} in ${incident.county}</h3>
+        <p><strong>Address:</strong> ${incident.address}</p>
+        <p><strong>Description:</strong> ${incident.description}</p>
+        <p><strong>Status:</strong> ${incident.status}</p>
+      `;
+      if (list.querySelector('p')) list.innerHTML = '';
+      list.appendChild(div);
+      form.reset();
+    };
+  </script>
+</body>
+</html> 

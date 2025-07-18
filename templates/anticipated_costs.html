@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>RAPID - Anticipated Costs</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}"/>
+</head>
+<body>
+  <header>
+    <h1>RAPID</h1>
+    <p>Anticipated Costs</p>
+  </header>
+  <nav>
+    <a href="{{ url_for('dashboard') }}">Dashboard</a>
+    <a href="{{ url_for('city_reports') }}">City Reports</a>
+    <a href="{{ url_for('resources') }}">Request Resources</a>
+    <a href="{{ url_for('submitted_reports') }}">Submitted Reports</a>
+    <a href="{{ url_for('demographics') }}">Demographics</a>
+    <ul class="navbar" style="display:inline-block; vertical-align:middle; margin:0; padding:0;">
+      <li class="dropdown">
+        <a href="#" class="dropbtn">Admin Dashboard</a>
+        <div class="dropdown-content">
+          <a href="{{ url_for('admin') }}">Admin Dashboard</a>
+          <a href="{{ url_for('city_reports') }}">City Reports</a>
+        </div>
+      </li>
+    </ul>
+  </nav>
+  <main>
+    <section>
+      <h2>Anticipated Costs</h2>
+      <p>This page will display anticipated costs related to incidents and resource allocation.</p>
+    </section>
+  </main>
+  <footer>
+    <p>RAPID</p>
+  </footer>
+</body>
+</html> 
