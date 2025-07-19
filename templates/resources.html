@@ -15,7 +15,7 @@
     <a href="index.html" class="back-btn">&larr; Back to Dashboard</a>
     <section>
       <h2>Resource Request Form</h2>
-      <form id="resource-form">
+      <form id="resource-form" action="{{ url_for('submit_resources') }}" method="POST">
         <label>
           County:
           <input type="text" name="county" required />
@@ -35,10 +35,58 @@
             <option value="other">Other</option>
           </select>
         </label>
-        <label>
-          Resources Requested:
-          <textarea name="resources" rows="3" required></textarea>
-        </label>
+        <table id="resource-table">
+          <tr>
+            <th>Resource Requested</th>
+            <th>Quantity</th>
+            <th>Specifications</th>
+            <th></th>
+          </tr>
+          <tr>
+            <td>Sandbags</td>
+            <td><input type="number" name="sandbags"></td>
+            <td><input type="text" name="sandbags_comment"></td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>Helicopters</td>
+            <td><input type="number" name="helicopters"></td>
+            <td><input type="text" name="helicopters_comment"></td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>Gasoline (Gallons)</td>
+            <td><input type="number" name="gasoline"></td>
+            <td><input type="text" name="gasoline_comment"></td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>Diesel (Gallons)</td>
+            <td><input type="number" name="diesel"></td>
+            <td><input type="text" name="diesel_comment"></td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>First Responders (Medical)</td>
+            <td><input type="number" name="medical_responders"></td>
+            <td><input type="text" name="medical_responders_comment"></td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>First Responders (Police)</td>
+            <td><input type="number" name="police_responders"></td>
+            <td><input type="text" name="police_responders_comment"></td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>First Responders (Fire)</td>
+            <td><input type="number" name="fire_responders"></td>
+            <td><input type="text" name="fire_responders_comment"></td>
+            <td></td>
+          </tr>
+        </table>
+        <button type="button" onclick="addRow()">Add Custom Resource</button>
+        <br><br>
         <button type="submit">Submit Request</button>
       </form>
       <div id="resource-message"></div>
@@ -47,6 +95,25 @@
   <footer>
     <p>RAPID</p>
   </footer>
+  <!-- script below handles dynamic table elements so they can add custom resources and remove them -->
+  <script>
+    function addRow() {
+      const table = document.getElementById("resource-table");
+      const newRow = table.insertRow();
+      const cell1 = newRow.insertCell(0);
+      const cell2 = newRow.insertCell(1);
+      const cell3 = newRow.insertCell(2);
+      const cell4 = newRow.insertCell(3);
+      cell1.innerHTML = '<input type="text" name="resource_name[]" placeholder="Custom Resource">';
+      cell2.innerHTML = '<input type="number" name="resource_quantity[]">';
+      cell3.innerHTML = '<input type="text" name="resource_specs[]">';
+      cell4.innerHTML = '<button type="button" class="remove-btn" onclick="removeRow(this)">Remove</button>';
+    }
+    function removeRow(button) {
+      const row = button.parentNode.parentNode;
+      row.remove();
+    }
+  </script>
   <script src="app.js"></script>
 </body>
 </html> 
