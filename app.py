@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, url_for
 import psycopg2
 from dotenv import load_dotenv # Remove this line if needed, this is for practice hide database passwords
 import os # Remove this line if needed as well, this is just for the passwords
-
+from scrapers import get_gas_prices
 
 app = Flask(__name__)
 
@@ -69,6 +69,33 @@ def index():
 @app.route('/resources')
 def resources():
     return render_template('resources.html')
+
+@app.route('/submit_resources', methods=['POST'])
+def submit_resources():
+    flat_cost = 0
+    man_hour_cost = 0
+    gas_price, diesel_price = get_gas_prices()
+    prices = {
+        'sandbags': 2.5,
+        'helicopters': 3000,
+        'gasoline': gas_price,
+        'diesel': diesel_price,
+    }
+    for item, price in prices.items():
+        quantity = request.form.get(item)
+        if quantity and quantity.isdigit():
+            flat_cost += int(quantity) * price
+    responders = {
+        'medical_responders': 50,
+        'police_responders': 45,
+        'fire_responders': 55
+    }
+    for role, hourly_rate in responders.items():
+        num = request.form.get(role)
+        if num and num.isdigit():
+            man_hour_cost += int(num) * hourly_rate
+    message = f"Your estimated request costs ${flat_cost:.2f} flat, ${man_hour_cost:.2f} per first responder man-hour. Additionally, helicopters cost $600 per hour of flight. Custom resources are not included in this estimate."
+    return render_template('summary.html', message=message)
 
 if __name__ == '__main__':
    app.run(debug = True)
