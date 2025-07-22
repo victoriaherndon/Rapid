@@ -30,8 +30,8 @@ Table resource_req {
   VolunteersNeeded bool // If you need additional volunteers
   DonationsNeeded bool // If donations are needed
   // Here all of the specific items needed, be as creative as you like
-  Helicopter int
-  ShelterRoom int
+  Helicopter int 
+  ShelterRoom int 
   Insulin int
   Gas int
   Food int
