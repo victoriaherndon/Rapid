@@ -4,6 +4,8 @@ from dotenv import load_dotenv # Remove this line if needed, this is for practic
 import os # Remove this line if needed as well, this is just for the passwords
 from scrapers import get_gas_prices
 from functools import wraps
+from flask import jsonify
+from parallel_api import get_stats
 
 app = Flask(__name__)
 
@@ -63,6 +65,18 @@ cur.execute(
         email VARCHAR(100),
         password VARCHAR(300),
         role VARCHAR(20) DEFAULT 'user');'''
+)
+
+#resource request table
+cur.execute(
+    '''CREATE TABLE IF NOT EXISTS resource_requests(
+        request_id SERIAL PRIMARY KEY,
+        incident_id INT,
+        county VARCHAR(30),
+        description TEXT,
+        status VARCHAR(20) DEFAULT 'pending',
+        estimated_cost INT DEFAULT 0
+    );'''
 )
 
 conn.commit()
@@ -258,6 +272,43 @@ def index():
 def logout():
     session.clear()
     return redirect(url_for('index'))
+
+
+@app.route('/api/stats/<county>')
+def county_stats(county):
+    data = get_stats(county)
+    return jsonify(data)
+
+
+
+@app.route("/admin/mock-approval", methods=['GET', 'POST'])
+@admin_required
+def mock_approval():
+    if request.method == 'POST':
+        request_id = request.form['request_id']
+        status = request.form['status']
+
+        conn = psycopg2.connect(database="rapid_db", user="postgres",
+                                password=psql_password, host="localhost")
+        cur = conn.cursor()
+        cur.execute(
+            "UPDATE resource_requests SET status = %s WHERE request_id = %s;",
+            (status, request_id)
+        )
+        conn.commit()
+        cur.close()
+        conn.close()
+
+    conn = psycopg2.connect(database="rapid_db", user="postgres",
+                            password=psql_password, host="localhost")
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM resource_requests ORDER BY request_id DESC;")
+    requests_list = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    return render_template("admin/mock_approval.html", requests=requests_list)
+
 
 if __name__ == '__main__':
    app.run(debug = True)

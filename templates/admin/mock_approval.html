@@ -35,6 +35,24 @@
         <button type="submit">Update Status</button>
       </form>
     </section>
+      
+    <section>
+      <h2>Existing Requests</h2>
+      {% if requests %}
+        <ul>
+          {% for r in requests %}
+            <li>
+              <strong>ID:</strong> {{ r[0] }} |
+              <strong>County:</strong> {{ r[1] }} |
+              <strong>Description:</strong> {{ r[2] }} |
+              <strong>Status:</strong> {{ r[3] }}
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p>No resource requests yet.</p>
+      {% endif %}
+    </section>
   </main>
 
   <footer>
