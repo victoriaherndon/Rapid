@@ -6,11 +6,12 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
-    <header>
+  <header>
     <h1>RAPID</h1>
     <p>Welcome to your Admin Dashboard, {{ username.capitalize() }}</p>
     <a href="{{ url_for('logout') }}" class="logout-link">Logout</a>
   </header>
+
   <nav>
     <a href="{{ url_for('demographics') }}">Demographics</a>
     <a href="{{ url_for('city_reports') }}">City Reports</a>
@@ -26,7 +27,6 @@
         <label for="request-id">Request ID:
           <input type="text" id="request-id" name="request_id" required>
         </label>
-
         <label for="status">Approval Status:
           <select id="status" name="status" required>
             <option value="">Select...</option>
@@ -34,14 +34,52 @@
             <option value="denied">Denied</option>
           </select>
         </label>
-
         <button type="submit">Update Status</button>
       </form>
+    </section>
+    <!-- would probably be cleaner in js but we're using flask -->
+    <section>
+      <h2>Submitted Requests</h2>
+      {% if requests %}
+        <table>
+          <thead>
+            <tr>
+              <th>Request ID</th>
+              <th>County</th>
+              <th>Estimated Cost</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for req in requests %}
+              <tr>
+                <td>{{ req[0] }}</td>
+                <td>{{ req[1] }}</td>
+                <!-- this displays the third value (estimated_cost) from the 
+                 query tuple as a floating point value with 2 decimals, preceded 
+                 by a dollar sign -->
+                <td>${{ '{:.2f}'.format(req[2] or 0) }}</td>
+                <td>
+                  {% if req[3] is none %}
+                    Pending
+                  {% elif req[3] %}
+                    Denied
+                  {% else %}
+                    Approved
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p>No requests found.</p>
+      {% endif %}
     </section>
   </main>
 
   <footer>
-    RAPID 
+    RAPID
   </footer>
 </body>
 </html>
