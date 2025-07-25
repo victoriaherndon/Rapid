@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, url_for, session, redirect
+from flask import Flask, render_template, request, url_for, session, redirect, flash
 import psycopg2
 from dotenv import load_dotenv # Remove this line if needed, this is for practice hide database passwords
 import os # Remove this line if needed as well, this is just for the passwords
@@ -295,8 +295,45 @@ def anticipated_costs():
 
 @app.route("/admin/mock-approval")
 @admin_required
+# this should connect to the database, list out all resource requests, and then subtract the estimated cost from the db
+# if approved
+# TODO: implement warning system/flash message if request would go negative
 def mock_approval():
-    return render_template("admin/mock_approval.html")
+    conn = psycopg2.connect(database="rapid_db", user="postgres", password=psql_password, host="localhost", port="5432")
+    cur = conn.cursor()
+    if request.method == 'POST':
+        request_id = request.form.get('request_id')
+        status = request.form.get('status')
+        is_rejected = (status == 'denied')
+        cur.execute("""
+            UPDATE resource_req
+            SET Is_Rejected = %s
+            WHERE ReportID = %s
+        """, (is_rejected, request_id))
+        if status == 'approved':
+            cur.execute("""
+                SELECT Estimated_Cost, County
+                FROM resource_req
+                WHERE ReportID = %s
+            """, (request_id,))
+            result = cur.fetchone()
+            if result:
+                estimated_cost, county = result
+                cur.execute("""
+                    UPDATE county
+                    SET Budget = Budget - %s
+                    WHERE Name = %s
+                """, (estimated_cost, county))
+        conn.commit()
+    cur.execute("""
+        SELECT ReportID, County, Estimated_Cost, Is_Rejected
+        FROM resource_req
+        ORDER BY ReportID DESC
+    """)
+    requests = cur.fetchall()
+    cur.close()
+    conn.close()
+    return render_template('admin/mock_approval.html', requests=requests)
 
 from werkzeug.security import generate_password_hash
 
