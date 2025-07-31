@@ -20,5 +20,4 @@ The work was divided among three team members. Jonathan created the database sch
 Victoria built the initial login and authentication system on the application side, later the team decided to transition to a database-side solution instead which Jonathan handled. She created the user dashboards, set up role-based filtering, added the resource request logic, handled the admin interface, managed form submissions, and passed data between users and admins. She also wrote the HTML, CSS, and other frontend files.
 
 
-Killian developed the gas price scraper, connected resource requests to the backend, refined the data schema, added anticipated cost estimation for resource requests, and set up the Neon database and did the initial migrating over to it.
-
+Killian developed the gas price scraper, connected resource requests to the backend, refined the data schema, and added anticipated cost estimation for resource requests. He also set up the Neon database and handled the initial migration to it. Killian worked extensively on the scraper logic and contributed significantly to the form functionality for submitting resources, helping to ensure the correct data was passed between the user and the backend.
