@@ -9,8 +9,10 @@ from dotenv import load_dotenv
 
 app = Flask(__name__)
 def db_connect():
-    return psycopg2.connect(database="rapid_db", user="postgres",
-                     password=psql_password, host="localhost")
+    return psycopg2.connect(
+        "postgresql://neondb_owner:npg_l6GvQO3zVwfC@ep-summer-truth-aehrsnkz-pooler.c-2.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+    )
+load_dotenv()
 load_dotenv()
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "default_secret_key")
 psql_password = os.getenv("PSQL_PASSWORD") # Remove this line if need
