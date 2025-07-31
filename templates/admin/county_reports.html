@@ -13,17 +13,68 @@
     <a href="{{ url_for('logout') }}" class="logout-link">Logout</a>
   </header>
   <nav>
+    <a href="{{ url_for('all_submitted_reports') }}">All Incidents</a>
+    <a href="{{ url_for('resource_approval') }}">Resource Approval</a>
     <a href="{{ url_for('demographics') }}">Demographics</a>
-    <a href="{{ url_for('city_reports') }}">City Reports</a>
     <a href="{{ url_for('county_reports') }}">County Reports</a>
-    <a href="{{ url_for('anticipated_costs') }}">Anticipated Costs</a>
-    <a href="{{ url_for('mock_approval') }}">Mock Approval</a>
   </nav>
   <main>
     <a href="{{ url_for('all_submitted_reports') }}" class="back-btn">&larr; Back to Dashboard</a>
+    
     <section>
       <h2>County Reports</h2>
-      <p>Here will list all county reports.</p>
+      
+      <!-- County Statistics -->
+      <div class="county-stats">
+        <h3>County Overview</h3>
+        <div class="stats-grid">
+          {% for county in counties %}
+          <div class="county-card">
+            <h4>{{ county[0] }}</h4>
+                         <div class="county-info">
+               <p><strong>Population:</strong> {{ "{:,}".format(county[1]) }}</p>
+               <p><strong>Budget:</strong> ${{ "{:,}".format(county[2]) }}</p>
+               <p><strong>Total Incidents:</strong> {{ county[3] }}</p>
+               <p><strong>Pending:</strong> {{ county[4] }}</p>
+               <p><strong>Approved:</strong> {{ county[5] }}</p>
+             </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      
+      <!-- Recent Incidents -->
+      <div class="recent-incidents">
+        <h3>Recent Incidents</h3>
+        {% if recent_incidents %}
+        <div class="incidents-list">
+          {% for incident in recent_incidents %}
+          <div class="incident-card">
+            <h4>{{ incident[3]|title }} in {{ incident[1] }} (Incident #{{ incident[0] }})</h4>
+            <div class="incident-details">
+              <p><strong>Address:</strong> {{ incident[2] }}</p>
+              <p><strong>Description:</strong> {{ incident[4] }}</p>
+              <p><strong>Status:</strong> 
+                <span class="status-badge status-{{ incident[6]|lower|replace(' ', '-') }}">
+                  {{ incident[6] or 'Under Review' }}
+                </span>
+              </p>
+              <p><strong>Submitted:</strong> 
+                {% if incident[5] %}
+                  {{ incident[5].strftime('%Y-%m-%d %H:%M') }}
+                {% else %}
+                  Not available
+                {% endif %}
+              </p>
+              <p><strong>By:</strong> {{ incident[7] or 'Unknown' }}</p>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p>No incidents reported yet.</p>
+        {% endif %}
+      </div>
     </section>
   </main>
   <footer>

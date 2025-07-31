@@ -13,11 +13,10 @@
     <a href="{{ url_for('logout') }}" class="logout-link">Logout</a>
   </header>
   <nav>
+    <a href="{{ url_for('all_submitted_reports') }}">All Incidents</a>
+    <a href="{{ url_for('resource_approval') }}">Resource Approval</a>
     <a href="{{ url_for('demographics') }}">Demographics</a>
-    <a href="{{ url_for('city_reports') }}">City Reports</a>
     <a href="{{ url_for('county_reports') }}">County Reports</a>
-    <a href="{{ url_for('anticipated_costs') }}">Anticipated Costs</a>
-    <a href="{{ url_for('mock_approval') }}">Mock Approval</a>
   </nav>
 
   <main>
@@ -27,11 +26,17 @@
       <div id="incidents-list">
         {% for inc in incidents %}
         <div class="incident-card">
-          <h3>{{ inc[2] | capitalize }} in {{ inc[0] }}</h3>
-          <p><strong>Address:</strong> {{ inc[1] }}</p>
-          <p><strong>Description:</strong> {{ inc[3] }}</p>
-          <p><strong>Date:</strong> {{ inc[4] }}</p>
-          <p><strong>Status:</strong> {{ inc[5] }}</p>
+          <h3>{{ inc[7] | capitalize }} in {{ inc[1] }} (Incident #{{ inc[0] }})</h3>
+          <p><strong>Address:</strong> {{ inc[2] }}</p>
+          <p><strong>Description:</strong> {{ inc[5] }}</p>
+          <p><strong>Date:</strong>
+            {% if inc[4] %}
+              {{ inc[4].strftime('%Y-%m-%d %H:%M') }}
+            {% else %}
+              Not Available
+            {% endif %}
+          </p>
+          <p><strong>Status:</strong> {{ inc[3] }}</p>
         </div>
         {% endfor %}
       </div>

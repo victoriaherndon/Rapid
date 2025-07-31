@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>City Manager Dashboard - RAPID</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}"/>
+</head>
+<body>
+  <header>
+    <h1>RAPID</h1>
+    <p>Welcome to your City Manager Dashboard, {{ username.capitalize() }}</p>
+    <a href="{{ url_for('logout') }}" class="logout-link">Logout</a>
+  </header>
+  
+  <nav>
+    <a href="{{ url_for('city_manager_dashboard') }}">Dashboard</a>
+    <a href="{{ url_for('resources') }}">Request Resources</a>
+    <a href="{{ url_for('submitted_reports') }}">My Reports</a>
+    <a href="{{ url_for('my_resource_requests') }}">My Resource Requests</a>
+  </nav>
+  
+  <main>
+    <section>
+      <h2>City Manager Dashboard</h2>
+      
+      <!-- Recent Incidents -->
+      <div class="recent-incidents">
+        <h3>Recent Incidents in Your Area</h3>
+        {% if incidents %}
+        <div class="incidents-list">
+          {% for incident in incidents %}
+          <div class="incident-card">
+            <h4>{{ incident[7]|title }} in {{ incident[1] }} (Incident #{{ incident[0] }})</h4>
+            <div class="incident-details">
+              <p><strong>Address:</strong> {{ incident[2] }}</p>
+              <p><strong>Description:</strong> {{ incident[5] }}</p>
+              <p><strong>Status:</strong> 
+                <span class="status-badge status-{{ incident[3]|lower|replace(' ', '-') }}">
+                  {{ incident[3] or 'Under Review' }}
+                </span>
+              </p>
+              <p><strong>Submitted:</strong> 
+                {% if incident[4] %}
+                  {{ incident[4].strftime('%Y-%m-%d %H:%M') }}
+                {% else %}
+                  Not available
+                {% endif %}
+              </p>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p>No incidents reported in your area yet.</p>
+        {% endif %}
+      </div>
+      
+      <!-- Resource Requests -->
+      <div class="resource-requests">
+        <h3>Resource Requests</h3>
+        {% if resource_requests %}
+        <div class="requests-list">
+          {% for request in resource_requests %}
+          <div class="request-card">
+            <h4>Request #{{ request[0] }} - {{ request[7]|title }} in {{ request[1] }}</h4>
+            <div class="request-details">
+              <p><strong>Estimated Cost:</strong> ${{ "{:,.2f}".format(request[2]) }}</p>
+              <p><strong>Status:</strong> 
+                <span class="status-badge status-{{ request[3]|lower|replace(' ', '-') }}">
+                  {{ request[3] }}
+                </span>
+              </p>
+              <p><strong>Address:</strong> {{ request[8] }}</p>
+              <p><strong>Description:</strong> {{ request[9] }}</p>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p>No resource requests yet.</p>
+        {% endif %}
+      </div>
+    </section>
+  </main>
+  
+  <footer>
+    <p>RAPID</p>
+  </footer>
+</body>
+</html> 

@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, url_for, session, redirect, flash
 import psycopg2
+from psycopg2 import OperationalError
 from dotenv import load_dotenv # Remove this line if needed, this is for practice hide database passwords
 import os # Remove this line if needed as well, this is just for the passwords
 from scrapers import get_gas_prices
@@ -24,39 +25,17 @@ cur = conn.cursor()
 def get_user_role(username, conn):
     cur = conn.cursor()
     try:
-        cur.execute(
-            '''
-            SELECT rolname FROM pg_roles
-            WHERE oid IN (
-                SELECT roleid
-                FROM pg_auth_members
-                WHERE member = (
-                    SELECT oid FROM pg_roles WHERE rolname = %s
-                )
-            )
-            AND rolname IN ('community_member', 'city_manager', 'state_official', 'admin')
-            ''', (username, )
-        )
-
-        roles = cur.fetchall()
-
-        # Debugging
-        print(f"Roles for user {username}: {roles}")
+        # Check the role column in the users table
+        cur.execute("SELECT role FROM users WHERE username = %s", (username,))
+        result = cur.fetchone()
         
-        # Turn the roles into a list
-        role_names = [role[0] for role in roles]
-        
-        # Order everything by roles
-        if 'admin' in role_names:
-            return 'admin'
-        elif 'state_official' in role_names:
-            return 'state_official'
-        elif 'city_manager' in role_names:
-            return 'city_manager'
-        elif 'community_member' in role_names:
-            return 'community_member'
+        if result:
+            role = result[0]
+            # Debugging
+            print(f"Role for user {username}: {role}")
+            return role
         else:
-            return 'user'
+            return 'community_member'  # Default to community_member instead of 'user'
     finally:
         cur.close()
 
@@ -69,38 +48,25 @@ cur.execute("""
 CREATE TABLE IF NOT EXISTS users(
     userid SERIAL PRIMARY KEY,
     username VARCHAR(50) UNIQUE NOT NULL,
-    email VARCHAR(100) UNIQUE NOT NULL
+    email VARCHAR(100) UNIQUE NOT NULL,
+    role VARCHAR(15) DEFAULT 'community_member'
 );
 """)
 
-# Create the incidents tables, so it references things that are there
+# Create the incidents table to match the schema
 cur.execute("""
-    CREATE TABLE IF NOT EXISTS incidents (
-        incident_id SERIAL PRIMARY KEY,
-        userid INT NOT NULL REFERENCES users(userid),
-        county VARCHAR(30) NOT NULL,
-        address VARCHAR(120) NOT NULL,
-        occurrence VARCHAR(10) NOT NULL,
-        description TEXT NOT NULL,
-        date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        status VARCHAR(20) DEFAULT 'Under Review'
+    CREATE TABLE IF NOT EXISTS incident_rep (
+        EventID SERIAL PRIMARY KEY,
+        County VARCHAR(15),
+        Address TEXT,
+        Status VARCHAR(15) DEFAULT 'Under Review',
+        Submitted_At TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        Description TEXT,
+        userid INT REFERENCES users(userid),
+        occurrence VARCHAR(10)
     );
 """)
-# ensure userid column exists in incidents
-cur.execute("""
-    DO $$
-    BEGIN
-        IF NOT EXISTS (
-            SELECT 1
-            FROM information_schema.columns
-            WHERE table_name = 'incidents'
-              AND column_name = 'userid'
-        ) THEN
-            ALTER TABLE incidents ADD COLUMN userid INT REFERENCES users(userid);
-        END IF;
-    END
-    $$;
-""")
+
 
 # We need to create the roles for the users in the database, community members, city managers, and state/federal officials
 cur.execute(
@@ -127,43 +93,15 @@ cur.execute(
 
 
 
-# add date column if it doesn't already exist in incidents
-cur.execute("""
-    DO $$
-    BEGIN
-        IF NOT EXISTS (
-            SELECT 1
-            FROM information_schema.columns
-            WHERE table_name='incidents' AND column_name='date'
-        ) THEN
-            ALTER TABLE incidents ADD COLUMN date TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
-        END IF;
-    END
-    $$;
-""")
 
-# status column for incidents table
-cur.execute("""
-    DO $$
-    BEGIN
-        IF NOT EXISTS (
-            SELECT 1
-            FROM information_schema.columns
-            WHERE table_name='incidents' AND column_name='status'
-        ) THEN
-            ALTER TABLE incidents ADD COLUMN status VARCHAR(20) DEFAULT 'Under Review';
-        END IF;
-    END
-    $$;
-""")
 
 # Now we can grant the permissions to the roles
 cur.execute(
     '''
-    GRANT SELECT, INSERT ON TABLE incidents TO community_member;
-    GRANT SELECT, UPDATE, DELETE ON TABLE incidents TO city_manager;
+    GRANT SELECT, INSERT ON TABLE incident_rep TO community_member;
+    GRANT SELECT, UPDATE, DELETE ON TABLE incident_rep TO city_manager;
     GRANT SELECT, INSERT ON TABLE resource_req TO city_manager;
-    GRANT SELECT, UPDATE ON TABLE incidents TO state_official;
+    GRANT SELECT, UPDATE ON TABLE incident_rep TO state_official;
     GRANT SELECT, UPDATE, DELETE ON TABLE resource_req TO state_official;
     GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO admin;
     '''
@@ -184,17 +122,68 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+# Decorator for city manager access
+def city_manager_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'username' not in session:
+            return redirect(url_for('index'))
+        if session.get('role') not in ['admin', 'city_manager']:
+            return redirect(url_for('dashboard'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+# Decorator for state official access
+def state_official_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'username' not in session:
+            return redirect(url_for('index'))
+        if session.get('role') not in ['admin', 'state_official']:
+            return redirect(url_for('dashboard'))
+        return f(*args, **kwargs)
+    return decorated_function
+
 # added decorator for updating header routes w/ admin access
 @app.context_processor
 def inject_user():
     return dict(username=session.get('username'))
 
+def process_incidents_for_template(incidents):
+    """Convert date strings to datetime objects for template rendering"""
+    from datetime import datetime
+    processed_incidents = []
+    for incident in incidents:
+        incident_list = list(incident)
+        if incident_list[4]:  # Submitted_At field (index 4)
+            try:
+                # Parse the date string to datetime object
+                if isinstance(incident_list[4], str):
+                    incident_list[4] = datetime.fromisoformat(incident_list[4].replace('Z', '+00:00'))
+                else:
+                    incident_list[4] = incident_list[4]  # Already a datetime object
+            except (ValueError, TypeError):
+                incident_list[4] = None
+        processed_incidents.append(incident_list)
+    return processed_incidents
+
 
 @app.route('/dashboard', methods=['GET', 'POST'])
 def dashboard():
-    if session.get('role') == 'admin':
-        return redirect(url_for('all_submitted_reports'))
+    # Check if user is logged in
+    if 'user_id' not in session or not session.get('user_id'):
+        return redirect(url_for('index'))
     
+    # Redirect based on role
+    role = session.get('role')
+    if role == 'admin':
+        return redirect(url_for('all_submitted_reports'))
+    elif role == 'city_manager':
+        return redirect(url_for('city_manager_dashboard'))
+    elif role == 'state_official':
+        return redirect(url_for('state_official_dashboard'))
+    
+    # Default: community_member dashboard
     userid = session.get('user_id')
 
     if request.method == 'POST':
@@ -203,13 +192,17 @@ def dashboard():
         occurrence = request.form['occurrence']
         description = request.form['description']
         
+        # Validate that userid is not 0 or None
+        if not userid or userid == 0:
+            flash('Invalid user session. Please log in again.')
+            return redirect(url_for('index'))
 
         conn = psycopg2.connect(database="rapid_db", user="postgres",
                                 password=psql_password, host="localhost")
         cur = conn.cursor()
         cur.execute('''
-            INSERT INTO incidents (userid, county, address, occurrence, description)
-            VALUES (%s, %s, %s, %s, %s);
+            INSERT INTO incident_rep (userid, County, Address, occurrence, Description, Status)
+            VALUES (%s, %s, %s, %s, %s, 'Under Review');
         ''', (userid, county, address, occurrence, description))  
 
         conn.commit()
@@ -219,33 +212,68 @@ def dashboard():
     conn = psycopg2.connect(database="rapid_db", user="postgres",
                             password=psql_password, host="localhost")
     cur = conn.cursor()
-    cur.execute("SELECT * FROM incidents WHERE userid = %s ORDER BY date DESC;", (userid,))
+    cur.execute("SELECT * FROM incident_rep WHERE userid = %s ORDER BY Submitted_At DESC;", (userid,))
     incidents = cur.fetchall()
     cur.close()
     conn.close()
 
-    return render_template('dashboard.html', username=session.get('username'), incidents=incidents)
+    return render_template('dashboard.html', username=session.get('username'), incidents=process_incidents_for_template(incidents))
 
 @app.route('/resources')
 def resources():
+    # Check if user is logged in
+    if 'user_id' not in session or not session.get('user_id'):
+        return redirect(url_for('index'))
+    
     if session.get('role') == 'admin':
         return redirect(url_for('all_submitted_reports'))
-    return render_template('resources.html')
+    
+    # Get user's incidents for the dropdown
+    user_id = session.get('user_id')
+    conn = psycopg2.connect(database="rapid_db", user="postgres",
+                            password=psql_password, host="localhost")
+    cur = conn.cursor()
+    cur.execute("SELECT EventID, County, Address, occurrence, Description FROM incident_rep WHERE userid = %s ORDER BY Submitted_At DESC;", (user_id,))
+    incidents = cur.fetchall()
+    cur.close()
+    conn.close()
+    
+    return render_template('resources.html', incidents=incidents)
 
 @app.route('/submit_resources', methods=['POST'])
 def submit_resources():
-    # get the amount of each resource to insert in the db later and to do math
-    county = request.form.get('county')
-    # address is currently useless, should discuss whether we want this added to the db or just removed from here
-    address = request.form.get('address')
+    # Check if user is logged in
+    if 'user_id' not in session or not session.get('user_id'):
+        return redirect(url_for('index'))
+    
+    # get the incident ID and fetch incident details from database
     incident_id = request.form.get('IncidentID')
-    sandbags = request.form.get('sandbags') or '0'
-    helicopters = request.form.get('helicopters') or '0'
-    gasoline = request.form.get('gasoline') or '0'
-    diesel = request.form.get('diesel') or '0'
-    medical_responders = request.form.get('medical_responders') or '0'
-    police_responders = request.form.get('police_responders') or '0'
-    fire_responders = request.form.get('fire_responders') or '0'
+    
+    # Get incident details from database
+    conn = psycopg2.connect(database="rapid_db", user="postgres",
+                            password=psql_password, host="localhost", port="5432")
+    cur = conn.cursor()
+    cur.execute("SELECT County, Address, occurrence FROM incident_rep WHERE EventID = %s", (incident_id,))
+    incident_result = cur.fetchone()
+    
+    if not incident_result:
+        flash('Invalid incident ID selected.')
+        return redirect(url_for('resources'))
+    
+    county = incident_result[0]
+    address = incident_result[1]
+    occurrence = incident_result[2]
+    cur.close()
+    conn.close()
+    
+    # Convert form values to integers/floats for calculations
+    sandbags = int(request.form.get('sandbags') or 0)
+    helicopters = int(request.form.get('helicopters') or 0)
+    gasoline = int(request.form.get('gasoline') or 0)
+    diesel = int(request.form.get('diesel') or 0)
+    medical_responders = int(request.form.get('medical_responders') or 0)
+    police_responders = int(request.form.get('police_responders') or 0)
+    fire_responders = int(request.form.get('fire_responders') or 0)
     # store the chunks of comments as a list of strings + store resource_comments as a dictionary for easier management and lookup of strings later
     # all of the chunks will be appended to list_of_comments and then that will be checked and submitted to the db
     comments_chunks = []
@@ -325,12 +353,12 @@ def submit_resources():
         INSERT INTO resource_req (
             IncidentID, County, Helicopter, Gasoline, Diesel, Sandbags,
             Medical_Responders, Police_Responders, Fire_Responders, 
-            Funds_Approved, Comments, Estimated_Cost
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            Funds_Approved, Comments, Estimated_Cost, Status
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     ''', (
-        incident_id, county, helicopters, gasoline, diesel, sandbags,
-        medical_responders, police_responders, fire_responders, 
-        0, comments_string, estimated_cost
+        incident_id, county, str(helicopters), str(gasoline), str(diesel), str(sandbags),
+        str(medical_responders), str(police_responders), str(fire_responders), 
+        0, comments_string, estimated_cost, 'Under Review'
     ))
     conn.commit()
     cur.close()
@@ -340,16 +368,56 @@ def submit_resources():
 
 @app.route('/submitted_reports')
 def submitted_reports():
+    # Check if user is logged in
+    if 'user_id' not in session or not session.get('user_id'):
+        return redirect(url_for('index'))
+    
     user_id = session.get('user_id')
+    
+    # Validate that userid is not 0 or None
+    if not user_id or user_id == 0:
+        flash('Invalid user session. Please log in again.')
+        return redirect(url_for('index'))
+    
     conn = psycopg2.connect(database="rapid_db", user="postgres",
                             password=psql_password, host="localhost")
     cur = conn.cursor()
-    cur.execute("SELECT * FROM incidents WHERE userid = %s ORDER BY date DESC;", (user_id,))
+    cur.execute("SELECT * FROM incident_rep WHERE userid = %s ORDER BY Submitted_At DESC;", (user_id,))
     incidents = cur.fetchall()
     cur.close()
     conn.close()
 
-    return render_template('submitted_reports.html', incidents=incidents)
+    return render_template('submitted_reports.html', incidents=process_incidents_for_template(incidents))
+
+@app.route('/my_resource_requests')
+def my_resource_requests():
+    # Check if user is logged in
+    if 'user_id' not in session or not session.get('user_id'):
+        return redirect(url_for('index'))
+    
+    user_id = session.get('user_id')
+    
+    conn = psycopg2.connect(database="rapid_db", user="postgres",
+                            password=psql_password, host="localhost")
+    cur = conn.cursor()
+    
+    # Get user's resource requests with incident details
+    cur.execute("""
+        SELECT rr.ReportID, rr.County, rr.Estimated_Cost, rr.Status, rr.Funds_Approved,
+               ir.EventID, ir.occurrence, ir.Address, ir.Description,
+               rr.Helicopter, rr.Gasoline, rr.Diesel, rr.Sandbags,
+               rr.Medical_Responders, rr.Police_Responders, rr.Fire_Responders,
+               rr.Comments, rr.IncidentID
+        FROM resource_req rr
+        LEFT JOIN incident_rep ir ON rr.IncidentID = ir.EventID
+        WHERE ir.userid = %s
+        ORDER BY rr.ReportID DESC
+    """, (user_id,))
+    requests = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    return render_template('my_resource_requests.html', requests=requests)
 
 
 @app.route('/admin/demographics')
@@ -357,167 +425,293 @@ def demographics():
     return render_template('admin/demographics.html')
 
 
-@app.route('/admin/city_reports')
-@admin_required
-def city_reports():
-    return render_template('admin/city_reports.html')
+# Removed city_reports route
 
 
 @app.route('/admin/county_reports')
 @admin_required
 def county_reports():
-    return render_template('admin/county_reports.html')
-
-
-@app.route("/admin/anticipated_costs")
-@admin_required
-def anticipated_costs():
-    return render_template("admin/anticipated_costs.html")
-
-
-@app.route("/admin/mock-approval")
-@admin_required
-# this should connect to the database, list out all resource requests, and then subtract the estimated cost from the db
-# if approved
-# TODO: implement warning system/flash message if request would go negative
-def mock_approval():
-    conn = psycopg2.connect(database="rapid_db", user="postgres", password=psql_password, host="localhost", port="5432")
+    conn = psycopg2.connect(database="rapid_db", user="postgres",
+                            password=psql_password, host="localhost")
     cur = conn.cursor()
-    if request.method == 'POST':
-        request_id = request.form.get('request_id')
-        status = request.form.get('status')
-        is_rejected = (status == 'denied')
-        cur.execute("""
-            UPDATE resource_req
-            SET Is_Rejected = %s
-            WHERE ReportID = %s
-        """, (is_rejected, request_id))
-        if status == 'approved':
-            cur.execute("""
-                SELECT Estimated_Cost, County
-                FROM resource_req
-                WHERE ReportID = %s
-            """, (request_id,))
-            result = cur.fetchone()
-            if result:
-                estimated_cost, county = result
-                cur.execute("""
-                    UPDATE county
-                    SET Budget = Budget - %s
-                    WHERE Name = %s
-                """, (estimated_cost, county))
-        conn.commit()
+    
+    # Get all counties with their incident counts and budgets
     cur.execute("""
-        SELECT ReportID, County, Estimated_Cost, Is_Rejected
-        FROM resource_req
-        ORDER BY ReportID DESC
+        SELECT 
+            c.Name,
+            c.Population,
+            c.Budget,
+            COUNT(ir.EventID) as incident_count,
+            COUNT(CASE WHEN ir.Status = 'Under Review' THEN 1 END) as pending_incidents,
+            COUNT(CASE WHEN ir.Status = 'Approved' THEN 1 END) as approved_incidents
+        FROM county c
+        LEFT JOIN incident_rep ir ON c.Name = ir.County
+        GROUP BY c.Name, c.Population, c.Budget
+        ORDER BY c.Name
     """)
-    requests = cur.fetchall()
+    counties = cur.fetchall()
+    
+    # Get recent incidents by county
+    cur.execute("""
+        SELECT 
+            ir.EventID,
+            ir.County,
+            ir.Address,
+            ir.occurrence,
+            ir.Description,
+            ir.Submitted_At,
+            ir.Status,
+            u.username
+        FROM incident_rep ir
+        LEFT JOIN users u ON ir.userid = u.userid
+        ORDER BY ir.Submitted_At DESC
+        LIMIT 10
+    """)
+    recent_incidents = cur.fetchall()
+    
     cur.close()
     conn.close()
-    return render_template('admin/mock_approval.html', requests=requests)
+    
+    return render_template('admin/county_reports.html', 
+                         counties=counties, 
+                         recent_incidents=process_incidents_for_template(recent_incidents))
+
+
+# Removed anticipated_costs route
+
+@app.route('/admin/resource_approval', methods=['GET', 'POST'])
+@admin_required
+def resource_approval():
+    conn = psycopg2.connect(database="rapid_db", user="postgres",
+                            password=psql_password, host="localhost")
+    cur = conn.cursor()
+    
+    if request.method == 'POST':
+        action = request.form.get('action')
+        report_id = request.form.get('report_id')
+        
+        if action and report_id:
+            # Get the resource request details
+            cur.execute("""
+                SELECT Estimated_Cost, County, IncidentID 
+                FROM resource_req 
+                WHERE ReportID = %s
+            """, (report_id,))
+            request_data = cur.fetchone()
+            
+            if request_data:
+                estimated_cost, county, incident_id = request_data
+                
+                if action == 'approve':
+                    # Check county budget
+                    cur.execute("SELECT Budget FROM county WHERE Name = %s", (county,))
+                    budget_result = cur.fetchone()
+                    
+                    if budget_result:
+                        current_budget = budget_result[0]
+                        new_budget = current_budget - estimated_cost
+                        
+                        # Approve the resource request
+                        cur.execute("""
+                            UPDATE resource_req 
+                            SET Status = 'Approved', Funds_Approved = %s 
+                            WHERE ReportID = %s
+                        """, (estimated_cost, report_id))
+                        
+                        # Update county budget (can go negative)
+                        cur.execute("""
+                            UPDATE county 
+                            SET Budget = Budget - %s 
+                            WHERE Name = %s
+                        """, (estimated_cost, county))
+                        
+                        # Update incident status to Approved
+                        cur.execute("""
+                            UPDATE incident_rep 
+                            SET Status = 'Approved' 
+                            WHERE EventID = %s
+                        """, (incident_id,))
+                        
+                        conn.commit()
+                        
+                        if new_budget < 0:
+                            flash(f'Resource request approved! County budget is now ${new_budget:,.2f} (negative).', 'success')
+                        else:
+                            flash('Resource request approved successfully!', 'success')
+                    else:
+                        flash('County not found.', 'error')
+                        
+                elif action == 'deny':
+                    # Deny the resource request
+                    cur.execute("""
+                        UPDATE resource_req 
+                        SET Status = 'Denied', Funds_Approved = 0 
+                        WHERE ReportID = %s
+                    """, (report_id,))
+                    
+                    # Update incident status to Denied
+                    cur.execute("""
+                        UPDATE incident_rep 
+                        SET Status = 'Denied' 
+                        WHERE EventID = %s
+                    """, (incident_id,))
+                    
+                    conn.commit()
+                    flash('Resource request denied.', 'success')
+    
+    # Fetch all resource requests with incident details
+    cur.execute("""
+        SELECT rr.ReportID, rr.County, rr.Estimated_Cost, rr.Status, rr.Funds_Approved,
+               ir.EventID, ir.occurrence, ir.Address, ir.Description,
+               rr.Helicopter, rr.Gasoline, rr.Diesel, rr.Sandbags,
+               rr.Medical_Responders, rr.Police_Responders, rr.Fire_Responders,
+               rr.Comments, rr.IncidentID
+        FROM resource_req rr
+        LEFT JOIN incident_rep ir ON rr.IncidentID = ir.EventID
+        ORDER BY rr.ReportID DESC
+    """)
+    resource_requests = cur.fetchall()
+    
+    # Fetch county budgets
+    cur.execute("SELECT Name, Budget FROM county ORDER BY Name")
+    counties = cur.fetchall()
+    
+    cur.close()
+    conn.close()
+    
+    return render_template('admin/resource_approval.html',
+                         resource_requests=resource_requests,
+                         counties=counties)
 
 @app.route('/create_account', methods=['GET', 'POST'])
 def create_account():
+    error = None
     if request.method == 'POST':
-        username = request.form['username'] # Lets have a psql role and a flask role, so flask is the app based logic
+        username = request.form['username']
         email = request.form['email']
         password = request.form['password']
+
+        # Validate username format
+        if not username.isalnum():
+            error = "Username must contain only alphanumeric characters"
+            return render_template('create_account.html', error=error)
 
         conn = psycopg2.connect(database="rapid_db", user="postgres",
             password=psql_password, host="localhost", port="5432")
         cur = conn.cursor()
 
-        # Check if the username already exists in the database
         try:
+            # Check if the username already exists in the users table
+            cur.execute("SELECT username FROM users WHERE username = %s", (username,))
+            existing_user = cur.fetchone()
+            
+            if existing_user:
+                error = "Username already taken. Please choose a different username."
+                cur.close()
+                conn.close()
+                return render_template('create_account.html', error=error)
+            
+            # Check if the username already exists as a PostgreSQL role
             cur.execute("SELECT 1 FROM pg_roles WHERE rolname = %s", (username,))
             existing_role = cur.fetchone()
 
-            # LOOK AT THIS, THE USERNAME HAS TO BE SAFE FOR THE USER TO BE CREATED
-            if not existing_role: # If the user does not exist, create user for the database
-                if not username.isalnum(): # This meant to be safe for SQL to inject the username into SQL
-                    error = "Username must contain only alphanumeric characters"
-
-                # Use string formatting for creating user and granting roles to the specific user
+            if not existing_role:
+                # Create PostgreSQL role
                 cur.execute(f"CREATE USER \"{username}\" WITH PASSWORD %s;", (password,))
-
-                # Automatically grants community member role to whoever signs up
+                # Grant community member role
                 cur.execute(f"GRANT community_member TO \"{username}\";")
+
+            # Insert user into the users table
+            cur.execute(
+                '''INSERT INTO users (username, email, role)
+                VALUES (%s, %s, 'community_member');''',
+                (username, email)
+            )
+
+            conn.commit()
+            cur.close()
+            conn.close()
+            
+            flash('Account created successfully! Please log in.')
+            return redirect(url_for('index')) 
+                
         except Exception as e:
-            error = f"User creation failed: {e}"
+            error = f"Account creation failed: {e}"
+            conn.rollback()
+            cur.close()
+            conn.close()
+            return render_template('create_account.html', error=error)
 
-        
-        # insert new user here if username if everything is good on the postgres side
-        # We really only need the username and emails here, the password is stored safely in postgres
-        # We do not need the email
-        cur.execute(
-            '''INSERT INTO users (username, email)
-            VALUES (%s, %s)
-            ON CONFLICT (username) DO NOTHING;''',
-            (username, email)
-        )
-
-        conn.commit()
-        cur.close()
-        conn.close()
-        
-        return redirect(url_for('index')) 
-    return render_template('create_account.html')
+    return render_template('create_account.html', error=error)
 
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
     error = None
-    # This is where the userid for the session will be stored, this is where it will be remembered
-    user_id_test = 0
 
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
 
-        # If the user exists within the postgres authentication
-        conn = psycopg2.connect(database="rapid_db", user="postgres", # Change this to the specific user logging in the database
+        # Connect to database as postgres user to check user existence
+        conn = psycopg2.connect(database="rapid_db", user="postgres",
             password=psql_password, host="localhost", port="5432")
 
         cur = conn.cursor()
 
-        # Validate if the user exists from the table so I can get the userid
-        cur.execute("SELECT username FROM users WHERE username = %s", (username,))
-        existing_user = cur.fetchone()
+        # First, check if the user exists in the users table and get their userid
+        cur.execute("SELECT userid FROM users WHERE username = %s", (username,))
+        user_result = cur.fetchone()
+        
+        if not user_result:
+            error = "Invalid username or password"
+            cur.close()
+            conn.close()
+            return render_template('index.html', error=error)
+        
+        user_id = user_result[0]
+        
+        # Check if the user exists as a PostgreSQL role
+        cur.execute("SELECT 1 FROM pg_roles WHERE rolname = %s", (username,))
+        existing_role = cur.fetchone()
 
-        if existing_user:
-            # This is to get the user_id so it can be used throughout the session so yeah, get that in your head gang
-            cur.execute("SELECT userid FROM users WHERE username=%s", (username,))
-            user_id_cookin = cur.fetchone()
+        if not existing_role:
+            error = "Invalid username or password"
+            cur.close()
+            conn.close()
+            return render_template('index.html', error=error)
 
-            # Debugging
-            print(user_id_cookin[0])
-            user_id_test = user_id_cookin[0]
-
-        else:
-            error="Cannot get user id of a user that does not exist"
-
-        # This checks from the database selection if the user already exists for the database
-        cur.execute("SELECT 1 FROM pg_roles WHERE rolname = %s", (username,)) # Checks the users that are in the roles list in psql
-        existing_user = cur.fetchone()
-
-        if existing_user:
-            # If the user is able to login into the database, the database will have specific permissions
-            # By the user
-            try:
-                conn =  psycopg2.connect(database="rapid_db", user=username, # Now the specific user is logging into the database, no need to manually hash password
+        # Try to authenticate the user
+        try:
+            # Test the user's credentials by connecting as the user
+            test_conn = psycopg2.connect(database="rapid_db", user=username,
                 password=password, host="localhost", port="5432")
-                session['username'] = username
-                session['role'] = get_user_role(username, conn) # Get the role of the user from the database, maybe this could work?
-                session['user_id'] = user_id_test
-
-                if get_user_role(username, conn) == 'admin':
-                    return redirect(url_for('all_submitted_reports'))
+            
+            # If we get here, authentication was successful
+            session['username'] = username
+            session['user_id'] = user_id
+            session['role'] = get_user_role(username, conn)  # Use postgres connection instead of user connection
+            
+            test_conn.close()
+            cur.close()
+            conn.close()
+            
+            # Redirect based on role
+            if session['role'] == 'admin':
+                return redirect(url_for('all_submitted_reports'))
+            elif session['role'] == 'city_manager':
+                return redirect(url_for('city_manager_dashboard'))
+            elif session['role'] == 'state_official':
+                return redirect(url_for('state_official_dashboard'))
+            else:
                 return redirect(url_for('dashboard'))
-            except OperationalError as e:
-                error = "Invalid username or password"
-        else:
-            error = "User does not exist"
+                
+        except psycopg2.OperationalError:
+            # Authentication failed
+            error = "Invalid username or password"
+            cur.close()
+            conn.close()
+            return render_template('index.html', error=error)
 
     return render_template('index.html', error=error)
 
@@ -532,13 +726,104 @@ def all_submitted_reports():
     conn = psycopg2.connect(database="rapid_db", user="postgres",
                             password=psql_password, host="localhost")
     cur = conn.cursor()
-    cur.execute("SELECT * FROM incidents ORDER BY date DESC;")
+    cur.execute("SELECT * FROM incident_rep ORDER BY Submitted_At DESC;")
     incidents = cur.fetchall()
     cur.close()
     conn.close()
+    
     return render_template(
     'admin/all_submitted_reports.html',
-    incidents=incidents,
+    incidents=process_incidents_for_template(incidents),
+    username=session.get('username')
+)
+
+# Remove the incident approval routes
+# @app.route('/admin/incident-approval')
+# @app.route('/city_manager/incident-approval')
+
+@app.route('/city_manager/dashboard')
+@city_manager_required
+def city_manager_dashboard():
+    conn = psycopg2.connect(database="rapid_db", user="postgres",
+                            password=psql_password, host="localhost")
+    cur = conn.cursor()
+    
+    # Get incidents in the city manager's area (all incidents for now)
+    cur.execute("SELECT * FROM incident_rep ORDER BY Submitted_At DESC;")
+    incidents = cur.fetchall()
+    
+    # Get resource requests for their area
+    cur.execute("""
+        SELECT rr.ReportID, rr.County, rr.Estimated_Cost, rr.Status, rr.Funds_Approved,
+               ir.EventID, ir.occurrence, ir.Address, ir.Description,
+               rr.Helicopter, rr.Gasoline, rr.Diesel, rr.Sandbags,
+               rr.Medical_Responders, rr.Police_Responders, rr.Fire_Responders,
+               rr.Comments, rr.IncidentID
+        FROM resource_req rr
+        LEFT JOIN incident_rep ir ON rr.IncidentID = ir.EventID
+        ORDER BY rr.ReportID DESC
+    """)
+    resource_requests = cur.fetchall()
+    
+    cur.close()
+    conn.close()
+    
+    return render_template(
+        'city_manager/dashboard.html',
+        incidents=process_incidents_for_template(incidents),
+        resource_requests=resource_requests,
+        username=session.get('username')
+    )
+
+# Remove the incident approval routes
+# @app.route('/city_manager/incident-approval')
+
+@app.route('/state_official/dashboard')
+@state_official_required
+def state_official_dashboard():
+    conn = psycopg2.connect(database="rapid_db", user="postgres",
+                            password=psql_password, host="localhost")
+    cur = conn.cursor()
+    
+    # Get all incidents for state overview
+    cur.execute("SELECT * FROM incident_rep ORDER BY Submitted_At DESC;")
+    incidents = cur.fetchall()
+    
+    # Get all resource requests for state oversight
+    cur.execute("""
+        SELECT rr.ReportID, rr.County, rr.Estimated_Cost, rr.Status, rr.Funds_Approved,
+               ir.EventID, ir.occurrence, ir.Address, ir.Description,
+               rr.Helicopter, rr.Gasoline, rr.Diesel, rr.Sandbags,
+               rr.Medical_Responders, rr.Police_Responders, rr.Fire_Responders,
+               rr.Comments, rr.IncidentID
+        FROM resource_req rr
+        LEFT JOIN incident_rep ir ON rr.IncidentID = ir.EventID
+        ORDER BY rr.ReportID DESC
+    """)
+    resource_requests = cur.fetchall()
+    
+    # Get county statistics
+    cur.execute("""
+        SELECT 
+            c.Name,
+            c.Population,
+            c.Budget,
+            COUNT(ir.EventID) as incident_count
+        FROM county c
+        LEFT JOIN incident_rep ir ON c.Name = ir.County
+        GROUP BY c.Name, c.Population, c.Budget
+        ORDER BY c.Name
+    """)
+    counties = cur.fetchall()
+    
+    cur.close()
+    conn.close()
+    
+    return render_template(
+        'state_official/dashboard.html',
+        incidents=process_incidents_for_template(incidents),
+        resource_requests=resource_requests,
+        counties=counties,
     username=session.get('username')
 )
 

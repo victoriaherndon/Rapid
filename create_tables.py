@@ -13,8 +13,8 @@ def create_tables(connection):
             name VARCHAR(30),
             role VARCHAR(15) DEFAULT 'user',
             username VARCHAR(15) UNIQUE NOT NULL,
-            email VARCHAR(255) UNIQUE NOT NULL,
-            -- password VARCHAR(512) NOT NULL --
+            email VARCHAR(255) UNIQUE NOT NULL
+            --, password VARCHAR(512) NOT NULL --
         );
         """,
         """
@@ -33,7 +33,9 @@ def create_tables(connection):
             Address TEXT,
             Status VARCHAR(15),
             Submitted_At TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            Description TEXT
+            Description TEXT,
+            userid INT REFERENCES users(userid),
+            occurrence VARCHAR(10)
         );
         """,
         """
@@ -51,7 +53,8 @@ def create_tables(connection):
             Funds_Approved INTEGER,
             Is_Rejected BOOL,
             Comments TEXT,
-            Estimated_Cost INTEGER
+            Estimated_Cost INTEGER,
+            Status VARCHAR(20) DEFAULT 'Under Review'
         );
         """
     ]

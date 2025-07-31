@@ -16,6 +16,7 @@
   <nav>
     <a href="{{ url_for('resources') }}">Request Resources</a>
     <a href="{{ url_for('submitted_reports') }}">My Submitted Reports</a>
+    <a href="{{ url_for('my_resource_requests') }}">My Resource Requests</a>
   </nav>
   <main>
     <a href="{{ url_for('dashboard') }}" class="back-btn">&larr; Back to Dashboard</a>
@@ -23,28 +24,14 @@
       <h2>Resource Request Form</h2>
       <form id="resource-form" action="{{ url_for('submit_resources') }}" method="POST">
         <label>
-          County:
-          <input type="text" name="county" required />
-        </label>
-        <label>
-          Address:
-          <input type="text" name="address" required />
-        </label>
-        <!-- from a purely design standpoint i think users should see incidents listed as a table and then click a button to submit
-        a resource request based off that event, which would then autopopulate... but for the sake of the presentation this is fine -->
-        <label>
-          Incident ID:
-          <input type="text" name="IncidentID" required />
-        </label>
-        <label>
-          Type of Occurrence:
-          <select name="type" required>
-            <option value="">Select...</option>
-            <option value="fire">Fire</option>
-            <option value="flood">Flood</option>
-            <option value="storm">Storm</option>
-            <option value="earthquake">Earthquake</option>
-            <option value="other">Other</option>
+          Select Incident:
+          <select name="IncidentID" required>
+            <option value="">Select an incident...</option>
+            {% if incidents %}
+              {% for inc in incidents %}
+                                 <option value="{{ inc[0] }}">Incident #{{ inc[0] }}: {{ inc[7]|capitalize }} in {{ inc[1] }} - {{ inc[2] }}</option>
+              {% endfor %}
+            {% endif %}
           </select>
         </label>
         <table id="resource-table">
@@ -99,7 +86,11 @@
         </table>
         <button type="button" onclick="addRow()">Add Custom Resource</button>
         <br><br>
-        <button type="submit">Submit Request</button>
+        <button type="submit" id="submit-btn">Submit Request</button>
+        <div id="loading-spinner" class="loading-spinner" style="display: none;">
+          <div class="spinner"></div>
+          <p>Submitting resource request...</p>
+        </div>
       </form>
       <div id="resource-message"></div>
     </section>
@@ -125,6 +116,19 @@
       const row = button.parentNode.parentNode;
       row.remove();
     }
+    
+    // Add loading functionality
+    document.getElementById('resource-form').addEventListener('submit', function() {
+      const form = document.getElementById('resource-form');
+      const submitBtn = document.getElementById('submit-btn');
+      const loadingSpinner = document.getElementById('loading-spinner');
+      
+      // Disable form and show loading spinner
+      form.classList.add('loading');
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Submitting...';
+      loadingSpinner.style.display = 'block';
+    });
   </script>
 </body>
 </html> 

@@ -13,11 +13,10 @@
     <a href="{{ url_for('logout') }}">Logout</a>
   </header>
   <nav>
+    <a href="{{ url_for('all_submitted_reports') }}">All Incidents</a>
+    <a href="{{ url_for('resource_approval') }}">Resource Approval</a>
     <a href="{{ url_for('demographics') }}">Demographics</a>
-    <a href="{{ url_for('city_reports') }}">City Reports</a>
     <a href="{{ url_for('county_reports') }}">County Reports</a>
-    <a href="{{ url_for('anticipated_costs') }}">Anticipated Costs</a>
-    <a href="{{ url_for('mock_approval') }}">Mock Approval</a>
   </nav>
   <main>
     <section>

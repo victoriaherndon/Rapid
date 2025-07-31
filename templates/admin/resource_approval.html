@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>RAPID - Resource Request Approval</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}"/>
+  <style>
+    .request-card {
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      background: #fff;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .request-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    .status-badge {
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+    .status-under-review { background: #fef3c7; color: #92400e; }
+    .status-approved { background: #d1fae5; color: #065f46; }
+    .status-denied { background: #fee2e2; color: #991b1b; }
+    .budget-info {
+      background: #f8fafc;
+      padding: 1rem;
+      border-radius: 6px;
+      margin-bottom: 1rem;
+    }
+    .resource-details {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+    .resource-item {
+      background: #f1f5f9;
+      padding: 0.75rem;
+      border-radius: 4px;
+    }
+    .action-buttons {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+    .btn-approve {
+      background: #16a34a;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .btn-deny {
+      background: #dc2626;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .btn-disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+    }
+    .flash-message {
+      padding: 1rem;
+      border-radius: 6px;
+      margin-bottom: 1rem;
+    }
+    .flash-success { background: #d1fae5; color: #065f46; }
+    .flash-error { background: #fee2e2; color: #991b1b; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>RAPID</h1>
+    <p>Welcome, {{ username.capitalize() }}</p> 
+    <p>Resource Allocation and Public Incident Dashboard</p>
+    <a href="{{ url_for('logout') }}" class="logout-link">Logout</a>
+  </header>
+  <nav>
+    <a href="{{ url_for('all_submitted_reports') }}">All Incidents</a>
+    <a href="{{ url_for('resource_approval') }}">Resource Approval</a>
+  </nav>
+  <main>
+    <section>
+      <h2>Resource Request Approval</h2>
+      
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="flash-message flash-{{ 'success' if category != 'error' else 'error' }}">
+              {{ message }}
+            </div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+      
+      <div class="budget-info">
+        <h3>County Budgets</h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem;">
+          {% for county in counties %}
+            <div style="background: white; padding: 0.5rem; border-radius: 4px;">
+              <strong>{{ county[0] }}</strong><br>
+              ${{ "{:,.0f}".format(county[1]) }}
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+      
+      {% if resource_requests %}
+        {% for req in resource_requests %}
+          <div class="request-card">
+            <div class="request-header">
+              <h3>Request #{{ req[0] }} - {{ req[1] }} County</h3>
+              <span class="status-badge status-{{ req[3].lower().replace(' ', '-') }}">
+                {{ req[3] }}
+              </span>
+            </div>
+            
+            <div style="margin-bottom: 1rem;">
+              <strong>Incident:</strong> {{ req[6]|capitalize }} in {{ req[1] }}<br>
+              <strong>Address:</strong> {{ req[7] }}<br>
+              <strong>Description:</strong> {{ req[8] }}<br>
+              <strong>Estimated Cost:</strong> ${{ "{:,.2f}".format(req[2]) }}
+              {% if req[4] %}
+                <br><strong>Funds Approved:</strong> ${{ "{:,.2f}".format(req[4]) }}
+              {% endif %}
+            </div>
+            
+            <div class="resource-details">
+              {% if req[9] and req[9] > 0 %}
+                <div class="resource-item">
+                  <strong>Helicopters:</strong> {{ req[9] }}
+                </div>
+              {% endif %}
+              {% if req[10] and req[10] > 0 %}
+                <div class="resource-item">
+                  <strong>Gasoline (Gallons):</strong> {{ req[10] }}
+                </div>
+              {% endif %}
+              {% if req[11] and req[11] > 0 %}
+                <div class="resource-item">
+                  <strong>Diesel (Gallons):</strong> {{ req[11] }}
+                </div>
+              {% endif %}
+              {% if req[12] and req[12] > 0 %}
+                <div class="resource-item">
+                  <strong>Sandbags:</strong> {{ req[12] }}
+                </div>
+              {% endif %}
+              {% if req[13] and req[13] > 0 %}
+                <div class="resource-item">
+                  <strong>Medical Responders:</strong> {{ req[13] }}
+                </div>
+              {% endif %}
+              {% if req[14] and req[14] > 0 %}
+                <div class="resource-item">
+                  <strong>Police Responders:</strong> {{ req[14] }}
+                </div>
+              {% endif %}
+              {% if req[15] and req[15] > 0 %}
+                <div class="resource-item">
+                  <strong>Fire Responders:</strong> {{ req[15] }}
+                </div>
+              {% endif %}
+            </div>
+            
+            {% if req[16] %}
+              <div style="margin: 1rem 0; padding: 0.75rem; background: #f8fafc; border-radius: 4px;">
+                <strong>Comments:</strong><br>
+                {{ req[16] }}
+              </div>
+            {% endif %}
+            
+            {% if req[3] == 'Under Review' %}
+              <form method="POST" style="display: inline;">
+                <input type="hidden" name="report_id" value="{{ req[0] }}">
+                <div class="action-buttons">
+                  <button type="submit" name="action" value="approve" class="btn-approve">
+                    Approve Request
+                  </button>
+                  <button type="submit" name="action" value="deny" class="btn-deny">
+                    Deny Request
+                  </button>
+                </div>
+              </form>
+            {% else %}
+              <div class="action-buttons">
+                <button class="btn-approve btn-disabled" disabled>
+                  {{ req[3] }}
+                </button>
+              </div>
+            {% endif %}
+          </div>
+        {% endfor %}
+      {% else %}
+        <p>No resource requests found.</p>
+      {% endif %}
+    </section>
+  </main>
+  <footer>
+    <p>RAPID</p>
+  </footer>
+</body>
+</html> 

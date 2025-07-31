@@ -14,8 +14,10 @@
     <a href="{{ url_for('logout') }}" class="logout-link">Logout</a>
   </header>
   <nav>
+    <a href="{{ url_for('dashboard') }}">Dashboard</a>
     <a href="{{ url_for('resources') }}">Request Resources</a>
     <a href="{{ url_for('submitted_reports') }}">My Submitted Reports</a>
+    <a href="{{ url_for('my_resource_requests') }}">My Resource Requests</a>
   </nav>
   <main>
     <a href="{{ url_for('dashboard') }}" class="back-btn">&larr; Back to Dashboard</a>
@@ -24,17 +26,23 @@
 
         {% if incidents %}
     {% for inc in incidents %}
-      <div class="incident-card">
-        <h3>{{ inc[2]|capitalize }} in {{ inc[0] }}</h3>
-        <p><strong>Address:</strong> {{ inc[1] }}</p>
-        <p><strong>Description:</strong> {{ inc[3] }}</p>
-        {% if inc|length > 4 %}
-          <p><strong>Date:</strong> {{ inc[4].strftime('%Y-%m-%d %H:%M') }}</p>
-        {% endif %}
-        {% if inc|length > 5 %}
-      <p><strong>Progress:</strong> {{ inc[5] }}</p> <!--- checking inc tuple has a 6th element (status) -->
-    {% endif %}
-      </div>
+                           <div class="incident-card">
+                    <h3>{{ inc[7]|capitalize }} in {{ inc[1] }} (Incident #{{ inc[0] }})</h3>
+          <p><strong>Address:</strong> {{ inc[2] }}</p>
+          <p><strong>Description:</strong> {{ inc[5] }}</p>
+          {% if inc|length > 4 %}
+            <p><strong>Date:</strong>
+              {% if inc[4] %}
+                {{ inc[4].strftime('%Y-%m-%d %H:%M') }}
+              {% else %}
+                Not Available
+              {% endif %}
+            </p>
+          {% endif %}
+          {% if inc|length > 3 %}
+        <p><strong>Status:</strong> {{ inc[3] }}</p>
+      {% endif %}
+       </div>
     {% endfor %}
   {% else %}
     <p>No submitted reports yet.</p>

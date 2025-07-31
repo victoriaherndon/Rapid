@@ -15,6 +15,11 @@
     <section>
       <a href="{{ url_for('index') }}" class="back-btn" id="backBtn">&larr; Back</a>
       <h2>Create Account</h2>
+      {% if error %}
+        <div class="error-message">
+          {{ error }}
+        </div>
+      {% endif %}
       <form id="createAccountForm" method="POST" action="{{ url_for('create_account') }}">
     <label>
       Username:

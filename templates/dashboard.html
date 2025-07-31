@@ -16,6 +16,7 @@
   <nav>
     <a href="{{ url_for('resources') }}">Request Resources</a>
     <a href="{{ url_for('submitted_reports') }}">Submitted Reports</a>
+    <a href="{{ url_for('my_resource_requests') }}">My Resource Requests</a>
   </nav>
   <main>
     <section class="report-section">
@@ -44,7 +45,11 @@
           Description:
           <textarea name="description" id="description" rows="3" required></textarea>
         </label>
-        <button type="submit">Submit Incident</button>
+        <button type="submit" id="submit-btn">Submit Incident</button>
+        <div id="loading-spinner" class="loading-spinner" style="display: none;">
+          <div class="spinner"></div>
+          <p>Submitting incident...</p>
+        </div>
       </form>
     </section>
     <section class="dashboard-section">
@@ -52,12 +57,19 @@
       <div id="incidents-list">
           {% if incidents %}
             {% for inc in incidents %}
-              <div class="incident-card">
-                <h3>{{ inc[2] | capitalize }} in {{ inc[0] }}</h3>
-                <p><strong>Address:</strong> {{ inc[1] }}</p>
-                <p><strong>Description:</strong> {{ inc[3] }}</p>
-                <p><strong>Date:</strong> {{ inc[4].strftime('%Y-%m-%d %H:%M') }}</p>
-              </div>
+                             <div class="incident-card">
+                 <h3>{{ inc[7] | capitalize }} in {{ inc[1] }} (Incident #{{ inc[0] }})</h3>
+                 <p><strong>Address:</strong> {{ inc[2] }}</p>
+                 <p><strong>Description:</strong> {{ inc[5] }}</p>
+                 <p><strong>Date:</strong>
+                   {% if inc[4] %}
+                     {{ inc[4].strftime('%Y-%m-%d %H:%M') }}
+                   {% else %}
+                     Not Available
+                   {% endif %}
+                 </p>
+                 <p><strong>Status:</strong> {{ inc[3] }}</p>
+               </div>
             {% endfor %}
           {% else %}
             <p>No incidents reported yet.</p>
@@ -68,5 +80,18 @@
   <footer>
     <p>RAPID </p>
   </footer>
+  <script>
+    document.getElementById('incident-form').addEventListener('submit', function() {
+      const form = document.getElementById('incident-form');
+      const submitBtn = document.getElementById('submit-btn');
+      const loadingSpinner = document.getElementById('loading-spinner');
+      
+      // Disable form and show loading spinner
+      form.classList.add('loading');
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Submitting...';
+      loadingSpinner.style.display = 'block';
+    });
+  </script>
 </body>
 </html> 
