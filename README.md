@@ -1,11 +1,24 @@
 RAPID is a secure web application built to help cities and communities manage emergencies more effectively. The goal of the project is to allow people to report incidents, request resources, and give city managers and administrators the tools to track and approve those requests. Every user has a role that determines what they can see and do on the platform. This project was developed with real-world emergency scenarios in mind, where time, communication, and clarity are critical. RAPID is meant to help reduce confusion during these moments and give users a better way to get help or provide support.
+
+
 The problem RAPID aims to solve is the lack of a central system during emergencies where community members can report an incident, request help, and track what’s going on in their area. City managers and admins often struggle to coordinate responses, view reports across counties, and manage limited resources. RAPID solves this by letting users report incidents with details like location and description, linking resource requests to specific incidents, and giving admins and city staff a way to approve or reject those requests. The app also shows the status and progress of incidents as they move through the system.
+
+
 All users must log in or create an account to access the dashboard. Community members will only see their own reports and resource requests. Admins can see every incident and request in the system and have access to approve, reject, or manage them. City managers can view incident reports and demographic info based on their assigned county. When submitting a resource request, users must select one of their previously reported incidents. Roles are set internally. If your account needs special access, an admin has to assign that role. Incident progress displays a description (like “Under Review”, “Approved”, “Denied”).
+
+
 The app uses Flask for backend routing, PostgreSQL for data storage, and psycopg2 to connect Flask to the database. We used dotenv to manage environment variables securely, and Playwright to pull live gas prices that are used to estimate resource transportation costs. The frontend is built with HTML, CSS, and JavaScript, and Jinja was used optionally for layout and form styling.
+
+
 Resources we referenced include official Flask, PostgreSQL, and Playwright documentation. Along with that, we used W3 Schools, Geeksforgeeks, stackoverflow for aid in the basics. For front-end UI features such as the loading button, or shadows, chatgpt was utilized for code reference. Our course materials from FSU, also aided us in progressing through the project. Environment variables were managed using .env files to hide sensitive credentials.
+
+
 Beyond our original project proposal, we implemented several extra features. These include the gas price scraper using Playwright, which helps estimate the cost of transporting resources. We also added logic to auto-fill fields based on the selected incident in the resource request form. We moved authentication to PostgreSQL and away from Flask for better password security. Role-based access was fully implemented, and we gave each user type a different dashboard experience. Admins have a full approval workflow for funding requests and can view submitted data from every county. City managers were given a dedicated demographic view to help with decision-making.
+
 The work was divided among three team members. Jonathan created the database schema, served as interim manager to help keep us on task by using Notion, helped manage user roles, moved password handling into PostgreSQL, and worked on merging code to use Neon, an online database service.
 
 Victoria built the initial login and authentication system on the application side, later the team decided to transition to a database-side solution instead which Jonathan handled. She created the user dashboards, set up role-based filtering, added the resource request logic, handled the admin interface, managed form submissions, and passed data between users and admins. She also wrote the HTML, CSS, and other frontend files.
+
+
 Killian developed the gas price scraper, connected resource requests to the backend, refined the data schema, added anticipated cost estimation for resource requests, and set up the Neon database and did the initial migrating over to it.
 
